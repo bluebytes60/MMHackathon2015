@@ -13,37 +13,50 @@ var result Result
 
 func main() {
 	t := &github.UnauthenticatedRateLimitedTransport{
-		ClientID:     "9d7ad4e06ed11c70c81b",
-		ClientSecret: "8d91201c4a5dbd7ab45ba41e98c91da7d1f10111",
+		ClientID:     "91ebc275df096fcdc2f1",
+		ClientSecret: "44df9cd0058914eafb2a5065bc8886931a085e96",
 	}
 	client := github.NewClient(t.Client())
 
 	opt := &github.RepositoryListOptions{Type: "owner", Sort: "updated", Direction: "desc"}
-	repos, _, err := client.Repositories.List("mediamath", opt)
+	repositories, _, err := client.Repositories.List("mediamath", opt)
 
 	if err != nil {
 		fmt.Errorf(err.Error())
 	}
 
 	languages := make(map[string]Language)
+	repositoriesData := make([]Repository, 0)
 
-	for _, repo := range repos {
+	for _, repo := range repositories {
 		fmt.Println(*repo.Name)
+		//language
 		langs, _, err := client.Repositories.ListLanguages("Mediamath", *repo.Name)
 
 		if err != nil {
 			fmt.Errorf(err.Error())
 		}
-
 		for langStr := range langs {
 			if lang, ok := languages[langStr]; ok {
-				lang.Repos = append(lang.Repos, Repo{*repo.Name})
+				lang.Repos = append(lang.Repos, *repo.Name)
 				languages[langStr] = lang
 			} else {
-				languages[langStr] = Language{Name: langStr, Repos: make([]Repo, 1, 100)}
-				languages[langStr].Repos[0] = Repo{*repo.Name}
+				languages[langStr] = Language{Name: langStr, Repos: make([]string, 1, 100)}
+				languages[langStr].Repos[0] = *repo.Name
 			}
 		}
+		//collaborators
+		users, _, err := client.Repositories.ListCollaborators("Mediamath", *repo.Name, &github.ListOptions{0, 0})
+		fmt.Println(users)
+		if err != nil {
+			fmt.Errorf(err.Error())
+		}
+		userData := make([]string, 0)
+		for _, user := range users {
+			userData = append(userData, *user.Login)
+		}
+		repositoriesData = append(repositoriesData, Repository{*repo.Name, userData})
+
 	}
 
 	langArray := make([]Language, len(languages))
@@ -53,10 +66,10 @@ func main() {
 		i++
 	}
 
-	result = Result{langArray}
+	result = Result{langArray, repositoriesData}
 
 	http.HandleFunc("/", Handler)
-	log.Fatal(http.ListenAndServe(":7777", nil))
+	log.Fatal(http.ListenAndServe(":5555", nil))
 }
 
 func Handler(w http.ResponseWriter, r *http.Request) {
@@ -69,15 +82,17 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type Language struct {
-	Name  string `json:"language"`
-	Repos []Repo `json:"repos"`
-}
-
-type Repo struct {
-	Name string `json:"repository"`
-}
-
 type Result struct {
-	Languages []Language `json:"data"`
+	Languages    []Language   `json:"data"`
+	Repositories []Repository `json:"repos"`
+}
+
+type Language struct {
+	Name  string   `json:"language"`
+	Repos []string `json:"repos"`
+}
+
+type Repository struct {
+	Name  string
+	Users []string
 }
