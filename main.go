@@ -66,7 +66,7 @@ func main() {
 		i++
 	}
 
-	result = Result{langArray, repositoriesData}
+	result = Result{langArray}
 
 	http.HandleFunc("/", Handler)
 	log.Fatal(http.ListenAndServe(":5555", nil))
@@ -83,8 +83,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 }
 
 type Result struct {
-	Languages    []Language   `json:"data"`
-	Repositories []Repository `json:"repos"`
+	Languages []Language `json:"data"`
+	//Repositories []Repository `json:"repos"`
 }
 
 type Language struct {
